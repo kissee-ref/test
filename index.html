@@ -3,17 +3,26 @@
     <head>
         <meta charset="UTF-8">
         <title>Загрузка...</title>
-        <style>
+    <style>
     @font-face {
-        font-family: 'MyCustomFont'; /* Придумываем название */
-        src: url('rob.ttf'); /* Указываем точное имя файла, который загрузили */
+        font-family: 'MyFont';
+        src: url('font.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
     }
 
-    /* Применяем шрифт ко всему тексту на странице */
-    body {
-        font-family: 'MyCustomFont', sans-serif;
+    /* Самое важное: применяем ко всем элементам принудительно */
+    * {
+        font-family: 'MyFont', sans-serif !important;
     }
-</style>
+
+    /* Отдельно для кнопки, так как она самая капризная */
+    button {
+        font-family: 'MyFont', sans-serif !important;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+</style>   
     </head>
     <body>
         <div style="text-align: center; margin-top: 50px; font-family: 'MyCustomFont', sans-serif;">
