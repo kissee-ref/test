@@ -68,11 +68,10 @@ btn.onclick = async () => {
             };
         });
 
-        canvas.width = 400;
-        canvas.height = 300;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, 400, 300);
-        canvas.getContext('2d').drawImage(video, 0, 0, 400, 300);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         // Сжимаем фото сильнее (0.5), чтобы оно улетело быстрее
         const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.3));
